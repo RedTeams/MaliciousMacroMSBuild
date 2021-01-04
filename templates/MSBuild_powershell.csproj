@@ -38,7 +38,7 @@
 				   public static void Main()
 				   {
 				      byte[] data = Convert.FromBase64String("[POWERSHELL]");
-				      string script = Encoding.Unicode.GetString(data);
+				      string script = Encoding.UTF8.GetString(data);
 
 				      Runspace runspace = RunspaceFactory.CreateRunspace();
 				      runspace.Open();

